@@ -1,0 +1,19 @@
+{
+  "name": "news-bot",
+  "version": "0.1.0",
+  "type": "module",
+  "private": true,
+  "packageManager": "pnpm@11.19.0",
+  "scripts": {
+    "news:preview": "node --import tsx src/scripts/createNewsPreview.ts",
+    "news:publish:dry-run": "node --import tsx src/scripts/publishNewsToTelegram.ts -- --dry-run",
+    "news:publish": "node --import tsx src/scripts/publishNewsToTelegram.ts",
+    "test:news": "node --import tsx src/scripts/checkNewsPipeline.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@types/node": "^24.0.0",
+    "tsx": "^4.20.0",
+    "typescript": "^5.8.0"
+  }
+}

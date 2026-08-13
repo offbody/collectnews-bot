@@ -1,0 +1,75 @@
+name: Publish News
+
+on:
+  schedule:
+    - cron: "0 5 * * *"
+    - cron: "0 12 * * *"
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: Check Telegram access without publishing.
+        required: true
+        default: true
+        type: boolean
+
+jobs:
+  publish-news:
+    name: Publish News
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    env:
+      TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+      TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+      JITTER_MAX_MINUTES: 70
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Resolve publication inputs
+        id: publication
+        run: |
+          if [ "${{ github.event_name }}" = "schedule" ]; then
+            echo "dry_run=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "dry_run=${{ inputs.dry_run }}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Apply scheduled jitter
+        if: ${{ github.event_name == 'schedule' }}
+        run: |
+          delay=$((0x$(date -u +%F%H | sha256sum | cut -c1-8) % (JITTER_MAX_MINUTES + 1)))
+          echo "Scheduled news jitter: ${delay} minutes"
+          sleep "${delay}m"
+
+      - name: Create news preview
+        run: pnpm run news:preview
+
+      - name: Telegram dry-run
+        if: ${{ steps.publication.outputs.dry_run == 'true' }}
+        run: pnpm run news:publish:dry-run
+
+      - name: Publish to Telegram
+        if: ${{ steps.publication.outputs.dry_run != 'true' }}
+        run: pnpm run news:publish
+
+      - name: Upload generated artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: news-publication
+          path: |
+            output/news-selection.json
+            output/news-message.txt

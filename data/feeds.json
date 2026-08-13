@@ -1,0 +1,7 @@
+[
+  {
+    "name": "Example Yakutia Feed",
+    "url": "https://example.com/yakutia/rss.xml",
+    "enabled": false
+  }
+]
