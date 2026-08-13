@@ -23,6 +23,13 @@ const regionalRss = `
       <pubDate>Thu, 13 Aug 2026 07:00:00 GMT</pubDate>
       <enclosure url="https://example.com/old-yakutia.jpg" type="image/jpeg" />
     </item>
+    <item>
+      <title>Уже опубликованная новость Якутии</title>
+      <link>https://example.com/already-published</link>
+      <description>Не должна повториться.</description>
+      <pubDate>Fri, 14 Aug 2026 09:00:00 GMT</pubDate>
+      <enclosure url="https://example.com/already-published.jpg" type="image/jpeg" />
+    </item>
   </channel>
 </rss>
 `
@@ -62,6 +69,7 @@ const selectedItems = selectNewsForPublication(items, {
   targetDate: "2026-08-14",
   timezone: "UTC",
   requireImage: true,
+  excludedLinks: new Set(["https://example.com/already-published"]),
 })
 
 if (selectedItems.length !== 2) {
@@ -70,6 +78,10 @@ if (selectedItems.length !== 2) {
 
 if (selectedItems[0]?.title !== "В Якутске открыли новый общественный проект") {
   throw new Error(`Unexpected first item: ${selectedItems[0]?.title}`)
+}
+
+if (selectedItems.some((item) => item.link === "https://example.com/already-published")) {
+  throw new Error("Published item should not be selected again.")
 }
 
 const selection = {
@@ -82,6 +94,7 @@ const selection = {
     targetDate: "2026-08-14",
     timezone: "UTC",
     requireImage: true,
+    excludedLinks: new Set(["https://example.com/already-published"]),
   }),
 }
 const message = createNewsMessage(selection)
@@ -97,6 +110,10 @@ if (!message.includes("Источник: Example Yakutia")) {
 
 if (!digest.includes("Федеральная новость дня")) {
   throw new Error(`Missing federal item in digest: ${digest}`)
+}
+
+if (selection.stats.excludedPublished !== 1) {
+  throw new Error(`Expected one excluded published item; received ${selection.stats.excludedPublished}.`)
 }
 
 console.log(

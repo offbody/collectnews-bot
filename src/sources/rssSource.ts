@@ -47,6 +47,7 @@ export function selectNewsForPublication(
     timezone?: string
     regionalRatio?: number
     requireImage?: boolean
+    excludedLinks?: Set<string>
   } = {},
 ) {
   const timezone = options.timezone ?? DEFAULT_TIMEZONE
@@ -62,7 +63,8 @@ export function selectNewsForPublication(
   const withImages = datedForTargetDay.filter((item) =>
     options.requireImage === false ? true : Boolean(item.imageUrl),
   )
-  const ranked = dedupeNews(withImages)
+  const withoutPublished = filterPublishedItems(withImages, options.excludedLinks)
+  const ranked = dedupeNews(withoutPublished)
     .map((item) => ({
       ...item,
       score: scoreNewsItem(item),
@@ -96,6 +98,7 @@ export function getSelectionStats(
     targetDate: string
     timezone?: string
     requireImage?: boolean
+    excludedLinks?: Set<string>
   },
 ) {
   const timezone = options.timezone ?? DEFAULT_TIMEZONE
@@ -105,11 +108,13 @@ export function getSelectionStats(
   const withImages = datedForTargetDay.filter((item) =>
     options.requireImage === false ? true : Boolean(item.imageUrl),
   )
+  const withoutPublished = filterPublishedItems(withImages, options.excludedLinks)
 
   return {
     totalFetched: items.length,
     datedForTargetDay: datedForTargetDay.length,
     withImages: withImages.length,
+    excludedPublished: withImages.length - withoutPublished.length,
     selectedRegional: selectedItems.filter((item) => item.sourceScope === "regional").length,
     selectedFederal: selectedItems.filter((item) => item.sourceScope === "federal").length,
   }
@@ -215,8 +220,20 @@ function dedupeNews(items: NewsItem[]) {
   })
 }
 
+function filterPublishedItems(items: NewsItem[], excludedLinks?: Set<string>) {
+  if (!excludedLinks?.size) {
+    return items
+  }
+
+  return items.filter((item) => !excludedLinks.has(normalizePublishedLink(item.link)))
+}
+
 function normalizeDedupeKey(item: NewsItem) {
   return (item.link || item.title).toLowerCase().replace(/\s+/g, " ").trim()
+}
+
+function normalizePublishedLink(link: string) {
+  return link.toLowerCase().replace(/[#?].*$/, "").replace(/\/$/, "").trim()
 }
 
 function scoreNewsItem(item: NewsItem) {

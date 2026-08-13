@@ -14,13 +14,15 @@ RSS source layer -> day filter -> image filter -> dedupe -> 70/30 scoring -> mes
 - Keep only items published on the target day.
 - Keep only items that include an image in `enclosure`, `media:content`,
   `media:thumbnail`, or the item HTML.
+- Exclude links already recorded in `data/published-news.json`.
 - Deduplicate by link/title.
 - Score deterministically by publication timestamp, newest first.
 - Select a daily batch with a target 70% regional / 30% federal ratio.
 - Generate a Telegram HTML message for the next item and a digest preview.
-- Publish as text-only Telegram post.
-- Keep scheduled dry-run disabled and manual dry-run enabled.
-- Apply deterministic scheduled jitter in the workflow draft.
+- Publish as a Telegram photo with HTML caption when an image URL is available.
+- Record successfully published links back to `data/published-news.json`.
+- Support manual dry-run/real publish and scheduled real publish through GitHub Actions.
+- Apply deterministic scheduled jitter in the workflow.
 
 This is not a finished editorial system yet. It is a structural duplicate of the palette/Awwwards pipeline, adapted for news sources.
 
@@ -68,6 +70,38 @@ Publish for real:
 pnpm run news:publish -- --env .secrets/news.env
 ```
 
+## Published State
+
+Published links are stored in `data/published-news.json`. The file contains only
+public metadata: source, title, link, image URL, source publication date, local
+posted date, and Telegram message id. Scheduled GitHub Actions runs commit this
+file back to the repository after successful publication so later slots do not
+repeat the same link.
+
+## GitHub Actions
+
+The `Publish News` workflow runs on six Yakutsk-time slots:
+
+- 08:00
+- 10:30
+- 13:00
+- 15:30
+- 18:00
+- 20:30
+
+Manual workflow dispatch supports:
+
+- `dry_run=true` to validate RSS, create preview, and check Telegram chat access.
+- `dry_run=false` to publish one selected item and update `data/published-news.json`.
+- `limit` to control the candidate batch size before picking the first item.
+
+Required repository secrets:
+
+```text
+TELEGRAM_BOT_TOKEN
+TELEGRAM_CHAT_ID
+```
+
 ## Feed Config
 
 Edit `data/feeds.json`:
@@ -101,7 +135,5 @@ TELEGRAM_CHAT_ID=
 
 ## Next Decisions
 
-- Posting frequency and daily slots.
 - Whether to publish source image as Telegram photo or use a custom rendered card.
-- Deduplication storage: JSON file, GitHub artifact/cache, gist, or database.
 - Editorial rules: official sources only, media sources, categories, blocked topics.

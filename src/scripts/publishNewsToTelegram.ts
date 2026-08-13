@@ -1,31 +1,59 @@
 import { readFile } from "node:fs/promises"
 import path from "node:path"
+import { createNewsMessage } from "../publishing/createNewsMessage.js"
+import { appendPublishedNews } from "../state/publishedNewsStore.js"
 import {
   getTelegramChat,
+  sendTelegramPhoto,
   sendTelegramMessage,
 } from "../telegram/telegramClient.js"
 import { loadTelegramConfig } from "../telegram/telegramConfig.js"
+import type { NewsSelection } from "../types.js"
 
 const args = parseArgs(process.argv.slice(2))
 const messagePath = path.resolve(args.message ?? "output/news-message.txt")
+const selectionPath = path.resolve(args.selection ?? "output/news-selection.json")
+const statePath = path.resolve(args.state ?? "data/published-news.json")
 const envPath = args.env ? path.resolve(args.env) : undefined
 const dryRun = args["dry-run"] === "true" || args["dry-run"] === "1"
 
-const [config, text] = await Promise.all([
+const [config, text, selection] = await Promise.all([
   loadTelegramConfig(envPath),
   readFile(messagePath, "utf8"),
+  readSelection(selectionPath),
 ])
 const chat = await getTelegramChat(config)
+const item = selection.items[0]
+
+if (!item) {
+  throw new Error("No selected news item to publish.")
+}
 
 if (dryRun) {
   console.log(`Telegram dry-run target: ${formatChat(chat)}`)
   console.log(`Telegram dry-run message lines: ${text.trimEnd().split("\n").length}`)
+  console.log(
+    `Telegram dry-run mode: ${item.imageUrl ? "photo with caption" : "text message"}`,
+  )
   process.exit(0)
 }
 
-const message = await sendTelegramMessage({
-  config,
-  text: text.trimEnd(),
+const message = item.imageUrl
+  ? await sendTelegramPhoto({
+      config,
+      photoUrl: item.imageUrl,
+      caption: createNewsMessage(selection, {
+        includeImageLink: false,
+        maxSummaryLength: 260,
+      }),
+    })
+  : await sendTelegramMessage({
+      config,
+      text: text.trimEnd(),
+    })
+
+await appendPublishedNews(statePath, item, {
+  telegramMessageId: message.message_id,
 })
 
 console.log(
@@ -69,4 +97,9 @@ function parseArgs(rawArgs: string[]) {
   }
 
   return parsed
+}
+
+async function readSelection(selectionPath: string) {
+  const content = await readFile(selectionPath, "utf8")
+  return JSON.parse(content) as NewsSelection
 }

@@ -1,6 +1,12 @@
 import type { NewsSelection } from "../types.js"
 
-export function createNewsMessage(selection: NewsSelection) {
+export function createNewsMessage(
+  selection: NewsSelection,
+  options: {
+    includeImageLink?: boolean
+    maxSummaryLength?: number
+  } = {},
+) {
   const item = selection.items[0]
 
   if (!item) {
@@ -8,16 +14,17 @@ export function createNewsMessage(selection: NewsSelection) {
   }
 
   const lines = [`<b>${escapeHtml(item.title)}</b>`]
+  const maxSummaryLength = options.maxSummaryLength ?? 320
 
   if (item.summary) {
     lines.push("")
-    lines.push(escapeHtml(truncate(item.summary, 320)))
+    lines.push(escapeHtml(truncate(item.summary, maxSummaryLength)))
   }
 
   lines.push("")
   lines.push(`Источник: ${escapeHtml(item.sourceName)}`)
 
-  if (item.imageUrl) {
+  if (item.imageUrl && options.includeImageLink !== false) {
     lines.push(`Изображение: ${formatLink(item.imageUrl, "открыть")}`)
   }
 

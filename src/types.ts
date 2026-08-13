@@ -29,7 +29,24 @@ export type NewsSelection = {
     totalFetched: number
     datedForTargetDay: number
     withImages: number
+    excludedPublished: number
     selectedRegional: number
     selectedFederal: number
   }
+}
+
+export type PublishedNewsRecord = {
+  link: string
+  title: string
+  sourceName: string
+  sourceScope: NewsFeed["scope"]
+  publishedAt?: string
+  imageUrl?: string
+  postedAt: string
+  telegramMessageId?: number
+}
+
+export type PublishedNewsStore = {
+  version: 1
+  items: PublishedNewsRecord[]
 }

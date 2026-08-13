@@ -10,6 +10,10 @@ import {
   loadFeeds,
   selectNewsForPublication,
 } from "../sources/rssSource.js"
+import {
+  getPublishedLinks,
+  loadPublishedNewsStore,
+} from "../state/publishedNewsStore.js"
 import type { NewsSelection } from "../types.js"
 
 const args = parseArgs(process.argv.slice(2))
@@ -17,11 +21,14 @@ const feedsPath = args.feeds ?? "data/feeds.json"
 const outputJsonPath = path.resolve(args.json ?? "output/news-selection.json")
 const outputMessagePath = path.resolve(args.message ?? "output/news-message.txt")
 const outputDigestPath = path.resolve(args.digest ?? "output/news-digest.txt")
+const statePath = path.resolve(args.state ?? "data/published-news.json")
 const limit = Number.parseInt(args.limit ?? "10", 10)
 const timezone = args.timezone ?? "Asia/Yakutsk"
 const targetDate = args.date ?? formatDateKey(new Date(), timezone)
 
 const feeds = await loadFeeds(feedsPath)
+const publishedStore = await loadPublishedNewsStore(statePath)
+const excludedLinks = getPublishedLinks(publishedStore)
 const items = await fetchRssNews(feeds)
 const selectedItems = selectNewsForPublication(items, {
   limit,
@@ -29,6 +36,7 @@ const selectedItems = selectNewsForPublication(items, {
   timezone,
   requireImage: true,
   regionalRatio: 0.7,
+  excludedLinks,
 })
 
 if (!selectedItems.length) {
@@ -45,6 +53,7 @@ const selection = {
     targetDate,
     timezone,
     requireImage: true,
+    excludedLinks,
   }),
 } satisfies NewsSelection
 

@@ -2,8 +2,13 @@ name: Publish News
 
 on:
   schedule:
-    - cron: "0 5 * * *"
-    - cron: "0 12 * * *"
+    # Yakutsk time: 08:00, 10:30, 13:00, 15:30, 18:00, 20:30.
+    - cron: "0 23 * * *"
+    - cron: "30 1 * * *"
+    - cron: "0 4 * * *"
+    - cron: "30 6 * * *"
+    - cron: "0 9 * * *"
+    - cron: "30 11 * * *"
   workflow_dispatch:
     inputs:
       dry_run:
@@ -11,21 +16,35 @@ on:
         required: true
         default: true
         type: boolean
+      limit:
+        description: Candidate count for the 70/30 regional/federal selection.
+        required: true
+        default: "10"
+        type: string
+
+concurrency:
+  group: publish-news
+  cancel-in-progress: false
+
+permissions:
+  contents: write
 
 jobs:
   publish-news:
     name: Publish News
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 25
 
     env:
       TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
       TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
-      JITTER_MAX_MINUTES: 70
+      JITTER_MAX_MINUTES: 20
 
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Set up pnpm
         uses: pnpm/action-setup@v4
@@ -42,11 +61,19 @@ jobs:
       - name: Resolve publication inputs
         id: publication
         run: |
+          target_date="$(TZ=Asia/Yakutsk date +%F)"
+
           if [ "${{ github.event_name }}" = "schedule" ]; then
-            echo "dry_run=false" >> "$GITHUB_OUTPUT"
+            dry_run=false
+            limit=10
           else
-            echo "dry_run=${{ inputs.dry_run }}" >> "$GITHUB_OUTPUT"
+            dry_run="${{ inputs.dry_run }}"
+            limit="${{ inputs.limit }}"
           fi
+
+          echo "target_date=${target_date}" >> "$GITHUB_OUTPUT"
+          echo "dry_run=${dry_run}" >> "$GITHUB_OUTPUT"
+          echo "limit=${limit}" >> "$GITHUB_OUTPUT"
 
       - name: Apply scheduled jitter
         if: ${{ github.event_name == 'schedule' }}
@@ -55,16 +82,38 @@ jobs:
           echo "Scheduled news jitter: ${delay} minutes"
           sleep "${delay}m"
 
+      - name: Validate RSS feeds
+        run: pnpm run feeds:validate
+
       - name: Create news preview
-        run: pnpm run news:preview
+        run: |
+          pnpm run news:preview -- \
+            --date "${{ steps.publication.outputs.target_date }}" \
+            --limit "${{ steps.publication.outputs.limit }}" \
+            --state data/published-news.json
 
       - name: Telegram dry-run
         if: ${{ steps.publication.outputs.dry_run == 'true' }}
-        run: pnpm run news:publish:dry-run
+        run: pnpm run news:publish:dry-run -- --state data/published-news.json
 
       - name: Publish to Telegram
         if: ${{ steps.publication.outputs.dry_run != 'true' }}
-        run: pnpm run news:publish
+        run: pnpm run news:publish -- --state data/published-news.json
+
+      - name: Commit published news state
+        if: ${{ steps.publication.outputs.dry_run != 'true' }}
+        run: |
+          if git diff --quiet -- data/published-news.json; then
+            echo "No published news state changes."
+            exit 0
+          fi
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data/published-news.json
+          git commit -m "Record published news item [skip ci]"
+          git pull --rebase origin main
+          git push
 
       - name: Upload generated artifacts
         uses: actions/upload-artifact@v4
@@ -73,3 +122,4 @@ jobs:
           path: |
             output/news-selection.json
             output/news-message.txt
+            output/news-digest.txt
