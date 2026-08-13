@@ -1,7 +1,100 @@
 [
   {
-    "name": "Example Yakutia Feed",
-    "url": "https://example.com/yakutia/rss.xml",
-    "enabled": false
+    "name": "Якутия.Инфо",
+    "url": "https://yakutia.info/feed",
+    "enabled": true,
+    "scope": "regional",
+    "reliability": "primary"
+  },
+  {
+    "name": "SakhaLife",
+    "url": "https://sakhalife.ru/feed/",
+    "enabled": true,
+    "scope": "regional",
+    "reliability": "primary"
+  },
+  {
+    "name": "Якутия 24",
+    "url": "https://yakutia24.ru/news?format=feed&type=rss",
+    "enabled": true,
+    "scope": "regional",
+    "reliability": "primary"
+  },
+  {
+    "name": "SakhaDay",
+    "url": "https://sakhaday.ru/feed/",
+    "enabled": true,
+    "scope": "regional",
+    "reliability": "primary"
+  },
+  {
+    "name": "Улус Медиа",
+    "url": "https://ulus.media/feed/",
+    "enabled": true,
+    "scope": "regional",
+    "reliability": "primary"
+  },
+  {
+    "name": "Эдэр Саас",
+    "url": "https://edersaas.ru/feed/",
+    "enabled": true,
+    "scope": "regional",
+    "reliability": "standard"
+  },
+  {
+    "name": "ЯСИА",
+    "url": "https://ysia.ru/feed/",
+    "enabled": true,
+    "scope": "regional",
+    "reliability": "standard"
+  },
+  {
+    "name": "Yakutia Daily",
+    "url": "https://yakutia-daily.ru/feed/",
+    "enabled": true,
+    "scope": "regional",
+    "reliability": "standard"
+  },
+  {
+    "name": "РИА Новости",
+    "url": "https://ria.ru/export/rss2/archive/index.xml",
+    "enabled": true,
+    "scope": "federal",
+    "reliability": "primary"
+  },
+  {
+    "name": "РБК",
+    "url": "https://rssexport.rbc.ru/rbcnews/news/30/full.rss",
+    "enabled": true,
+    "scope": "federal",
+    "reliability": "primary"
+  },
+  {
+    "name": "Ведомости",
+    "url": "https://www.vedomosti.ru/rss/news",
+    "enabled": true,
+    "scope": "federal",
+    "reliability": "primary"
+  },
+  {
+    "name": "Lenta.ru",
+    "url": "https://lenta.ru/rss",
+    "enabled": true,
+    "scope": "federal",
+    "reliability": "primary"
+  },
+  {
+    "name": "ТАСС",
+    "url": "https://tass.ru/rss/v2.xml",
+    "enabled": true,
+    "scope": "federal",
+    "reliability": "standard"
+  },
+  {
+    "name": "Аргументы и Факты",
+    "url": "https://aif.ru/rss/news.php",
+    "enabled": true,
+    "scope": "federal",
+    "reliability": "standard"
   }
 ]

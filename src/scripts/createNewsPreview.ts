@@ -1,10 +1,14 @@
 import { mkdir, writeFile } from "node:fs/promises"
 import path from "node:path"
-import { createNewsMessage } from "../publishing/createNewsMessage.js"
+import {
+  createNewsDigest,
+  createNewsMessage,
+} from "../publishing/createNewsMessage.js"
 import {
   fetchRssNews,
+  getSelectionStats,
   loadFeeds,
-  selectRegionalNews,
+  selectNewsForPublication,
 } from "../sources/rssSource.js"
 import type { NewsSelection } from "../types.js"
 
@@ -12,35 +16,57 @@ const args = parseArgs(process.argv.slice(2))
 const feedsPath = args.feeds ?? "data/feeds.json"
 const outputJsonPath = path.resolve(args.json ?? "output/news-selection.json")
 const outputMessagePath = path.resolve(args.message ?? "output/news-message.txt")
+const outputDigestPath = path.resolve(args.digest ?? "output/news-digest.txt")
+const limit = Number.parseInt(args.limit ?? "10", 10)
+const timezone = args.timezone ?? "Asia/Yakutsk"
+const targetDate = args.date ?? formatDateKey(new Date(), timezone)
 
 const feeds = await loadFeeds(feedsPath)
 const items = await fetchRssNews(feeds)
-const regionalItems = selectRegionalNews(items)
-const selectedItem = regionalItems[0]
+const selectedItems = selectNewsForPublication(items, {
+  limit,
+  targetDate,
+  timezone,
+  requireImage: true,
+  regionalRatio: 0.7,
+})
 
-if (!selectedItem) {
-  throw new Error("No matching regional news item found.")
+if (!selectedItems.length) {
+  throw new Error(`No matching news items found for ${targetDate}.`)
 }
 
 const selection = {
-  item: selectedItem,
+  items: selectedItems,
   selectedAt: new Date().toISOString(),
-  reason: "latest regional RSS item after keyword filtering",
+  targetDate,
+  timezone,
+  reason: "latest dated RSS items with images, deduped and balanced by 70/30 regional/federal ratio",
+  stats: getSelectionStats(items, selectedItems, {
+    targetDate,
+    timezone,
+    requireImage: true,
+  }),
 } satisfies NewsSelection
 
 const message = createNewsMessage(selection)
+const digest = createNewsDigest(selection)
 
 await Promise.all([
   mkdir(path.dirname(outputJsonPath), { recursive: true }),
   mkdir(path.dirname(outputMessagePath), { recursive: true }),
+  mkdir(path.dirname(outputDigestPath), { recursive: true }),
 ])
 await Promise.all([
   writeFile(outputJsonPath, `${JSON.stringify(selection, null, 2)}\n`, "utf8"),
   writeFile(outputMessagePath, `${message}\n`, "utf8"),
+  writeFile(outputDigestPath, `${digest}\n`, "utf8"),
 ])
 
-console.log(`Selected ${selection.item.title}`)
+console.log(
+  `Selected ${selection.items.length} items: ${selection.stats.selectedRegional} regional, ${selection.stats.selectedFederal} federal.`,
+)
 console.log(`Message ${path.relative(process.cwd(), outputMessagePath)}`)
+console.log(`Digest ${path.relative(process.cwd(), outputDigestPath)}`)
 
 function parseArgs(rawArgs: string[]) {
   const parsed: Record<string, string> = {}
@@ -69,4 +95,16 @@ function parseArgs(rawArgs: string[]) {
   }
 
   return parsed
+}
+
+function formatDateKey(date: Date, timezone: string) {
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: timezone,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(date)
+  const valueByType = Object.fromEntries(parts.map((part) => [part.type, part.value]))
+
+  return `${valueByType.year}-${valueByType.month}-${valueByType.day}`
 }
