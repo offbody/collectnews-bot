@@ -38,20 +38,7 @@ if (dryRun) {
   process.exit(0)
 }
 
-const message = item.imageUrl
-  ? await sendTelegramPhoto({
-      config,
-      photoUrl: item.imageUrl,
-      caption: createNewsMessage(selection, {
-        includeImageLink: false,
-        maxSummaryLength: 720,
-        maxMessageLength: 1000,
-      }),
-    })
-  : await sendTelegramMessage({
-      config,
-      text: text.trimEnd(),
-    })
+const message = await publishSelection()
 
 await appendPublishedNews(statePath, item, {
   telegramMessageId: message.message_id,
@@ -103,4 +90,51 @@ function parseArgs(rawArgs: string[]) {
 async function readSelection(selectionPath: string) {
   const content = await readFile(selectionPath, "utf8")
   return JSON.parse(content) as NewsSelection
+}
+
+async function publishSelection() {
+  if (!item.imageUrl) {
+    return sendTelegramMessage({
+      config,
+      text: text.trimEnd(),
+    })
+  }
+
+  try {
+    return await sendTelegramPhoto({
+      config,
+      photoUrl: item.imageUrl,
+      caption: createNewsMessage(selection, {
+        includeImageLink: false,
+        maxSummaryLength: 720,
+        maxMessageLength: 1000,
+      }),
+    })
+  } catch (error) {
+    if (!isTelegramPhotoContentError(error)) {
+      throw error
+    }
+
+    console.warn(
+      "Telegram rejected the image URL as photo content; falling back to text message.",
+    )
+
+    return sendTelegramMessage({
+      config,
+      text: createNewsMessage(selection, {
+        includeImageLink: true,
+        maxSummaryLength: 720,
+        maxMessageLength: 1600,
+      }),
+    })
+  }
+}
+
+function isTelegramPhotoContentError(error: unknown) {
+  return (
+    error instanceof Error &&
+    (error.message.includes("wrong type of the web page content") ||
+      error.message.includes("failed to get HTTP URL content") ||
+      error.message.includes("wrong file identifier/HTTP URL specified"))
+  )
 }
