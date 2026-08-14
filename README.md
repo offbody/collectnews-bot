@@ -18,6 +18,7 @@ RSS source layer -> day filter -> image filter -> dedupe -> 70/30 scoring -> mes
 - Deduplicate by link/title.
 - Score deterministically by publication timestamp, newest first.
 - Select a daily batch with a target 70% regional / 30% federal ratio.
+- Enrich short RSS summaries from article meta descriptions when available.
 - Generate a Telegram HTML message for the next item and a digest preview.
 - Publish as a Telegram photo with HTML caption when an image URL is available.
 - Record successfully published links back to `data/published-news.json`.

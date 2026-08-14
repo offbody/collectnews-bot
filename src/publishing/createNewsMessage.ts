@@ -5,6 +5,7 @@ export function createNewsMessage(
   options: {
     includeImageLink?: boolean
     maxSummaryLength?: number
+    maxMessageLength?: number
   } = {},
 ) {
   const item = selection.items[0]
@@ -13,11 +14,16 @@ export function createNewsMessage(
     throw new Error("Cannot create a news message without selected items.")
   }
 
-  const lines = [`<b>${escapeHtml(item.title)}</b>`]
-  const maxSummaryLength = options.maxSummaryLength ?? 320
+  const lines = [
+    `<b>${escapeHtml(item.title)}</b>`,
+    "",
+    `${formatScope(item.sourceScope)} · ${formatPublishedAt(item.publishedAt)}`,
+  ]
+  const maxSummaryLength = options.maxSummaryLength ?? 720
 
   if (item.summary) {
     lines.push("")
+    lines.push("<b>Коротко:</b>")
     lines.push(escapeHtml(truncate(item.summary, maxSummaryLength)))
   }
 
@@ -32,7 +38,7 @@ export function createNewsMessage(
     lines.push(`Ссылка: ${formatLink(item.link, "читать")}`)
   }
 
-  return lines.join("\n")
+  return truncateMessage(lines.join("\n"), options.maxMessageLength ?? 1600)
 }
 
 export function createNewsDigest(selection: NewsSelection) {
@@ -67,6 +73,14 @@ function truncate(value: string, maxLength: number) {
   }
 
   return `${value.slice(0, maxLength - 1).trimEnd()}...`
+}
+
+function truncateMessage(value: string, maxLength: number) {
+  if (value.length <= maxLength) {
+    return value
+  }
+
+  return `${value.slice(0, maxLength - 3).trimEnd()}...`
 }
 
 function formatLink(url: string, label: string) {

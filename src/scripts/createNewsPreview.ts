@@ -10,6 +10,7 @@ import {
   loadFeeds,
   selectNewsForPublication,
 } from "../sources/rssSource.js"
+import { enrichNewsSummaries } from "../sources/articleSummary.js"
 import {
   getPublishedLinks,
   loadPublishedNewsStore,
@@ -30,14 +31,18 @@ const feeds = await loadFeeds(feedsPath)
 const publishedStore = await loadPublishedNewsStore(statePath)
 const excludedLinks = getPublishedLinks(publishedStore)
 const items = await fetchRssNews(feeds)
-const selectedItems = selectNewsForPublication(items, {
-  limit,
-  targetDate,
-  timezone,
-  requireImage: true,
-  regionalRatio: 0.7,
-  excludedLinks,
-})
+const selectedItems = promoteInformativeItem(
+  await enrichNewsSummaries(
+    selectNewsForPublication(items, {
+      limit,
+      targetDate,
+      timezone,
+      requireImage: true,
+      regionalRatio: 0.7,
+      excludedLinks,
+    }),
+  ),
+)
 
 if (!selectedItems.length) {
   throw new Error(`No matching news items found for ${targetDate}.`)
@@ -116,4 +121,20 @@ function formatDateKey(date: Date, timezone: string) {
   const valueByType = Object.fromEntries(parts.map((part) => [part.type, part.value]))
 
   return `${valueByType.year}-${valueByType.month}-${valueByType.day}`
+}
+
+function promoteInformativeItem<T extends { summary?: string }>(items: T[]) {
+  const informativeIndex = items.findIndex(
+    (item) => (item.summary?.length ?? 0) >= 220,
+  )
+
+  if (informativeIndex <= 0) {
+    return items
+  }
+
+  return [
+    items[informativeIndex]!,
+    ...items.slice(0, informativeIndex),
+    ...items.slice(informativeIndex + 1),
+  ]
 }

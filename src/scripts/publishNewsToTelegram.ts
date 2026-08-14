@@ -44,7 +44,8 @@ const message = item.imageUrl
       photoUrl: item.imageUrl,
       caption: createNewsMessage(selection, {
         includeImageLink: false,
-        maxSummaryLength: 260,
+        maxSummaryLength: 720,
+        maxMessageLength: 1000,
       }),
     })
   : await sendTelegramMessage({

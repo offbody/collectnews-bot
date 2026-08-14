@@ -108,6 +108,10 @@ if (!message.includes("Источник: Example Yakutia")) {
   throw new Error(`Missing source line: ${message}`)
 }
 
+if (!message.includes("<b>Коротко:</b>")) {
+  throw new Error(`Missing summary section: ${message}`)
+}
+
 if (!digest.includes("Федеральная новость дня")) {
   throw new Error(`Missing federal item in digest: ${digest}`)
 }
