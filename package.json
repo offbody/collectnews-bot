@@ -9,6 +9,7 @@
     "news:publish:dry-run": "node --import tsx src/scripts/publishNewsToTelegram.ts -- --dry-run",
     "news:publish": "node --import tsx src/scripts/publishNewsToTelegram.ts",
     "feeds:validate": "node --import tsx src/scripts/validateFeeds.ts",
+    "telegram:control": "node --import tsx src/scripts/runTelegramControlBot.ts",
     "test:news": "node --import tsx src/scripts/checkNewsPipeline.ts",
     "typecheck": "tsc --noEmit"
   },

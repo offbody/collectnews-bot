@@ -101,6 +101,51 @@ TELEGRAM_BOT_TOKEN
 TELEGRAM_CHAT_ID
 ```
 
+Scheduled publishing can be controlled by repository variables:
+
+```text
+SCHEDULE_ENABLED=true
+SCHEDULE_LIMIT=10
+```
+
+## Telegram Control Bot
+
+The control bot is a separate Telegram interface over GitHub Actions. It does
+not publish directly; it dispatches the `Publish News` workflow with selected
+inputs and can save scheduled publishing variables.
+
+Create a local `.secrets/control.env`:
+
+```env
+TELEGRAM_BOT_TOKEN=
+TELEGRAM_ADMIN_USER_IDS=
+GITHUB_TOKEN=
+GITHUB_REPOSITORY=offbody/collectnews-bot
+GITHUB_WORKFLOW_ID=publish-news.yml
+GITHUB_REF=main
+```
+
+`TELEGRAM_ADMIN_USER_IDS` is a comma-separated list of numeric Telegram user ids
+allowed to control publishing. If a non-whitelisted user opens the bot, the bot
+replies with that user's numeric id for setup. `GITHUB_TOKEN` must be allowed to
+dispatch workflows and write repository variables.
+
+Run the local control bot:
+
+```bash
+pnpm run telegram:control -- --env .secrets/control.env
+```
+
+Then send `/publish` to the bot. The inline keyboard supports:
+
+- toggling dry-run/live publish for manual workflow dispatch;
+- changing manual selection limit;
+- running the publish workflow;
+- opening scheduled settings;
+- enabling/disabling scheduled publishing;
+- changing scheduled selection limit;
+- saving scheduled settings to GitHub repository variables.
+
 ## Feed Config
 
 Edit `data/feeds.json`:

@@ -61,27 +61,37 @@ jobs:
 
           if [ "${{ github.event_name }}" = "schedule" ]; then
             dry_run=false
-            limit=10
+            limit="${{ vars.SCHEDULE_LIMIT || '10' }}"
+            schedule_enabled="${{ vars.SCHEDULE_ENABLED || 'true' }}"
           else
             dry_run="${{ inputs.dry_run }}"
             limit="${{ inputs.limit }}"
+            schedule_enabled=true
           fi
 
           echo "target_date=${target_date}" >> "$GITHUB_OUTPUT"
           echo "dry_run=${dry_run}" >> "$GITHUB_OUTPUT"
           echo "limit=${limit}" >> "$GITHUB_OUTPUT"
+          echo "schedule_enabled=${schedule_enabled}" >> "$GITHUB_OUTPUT"
+
+      - name: Stop when scheduled publishing is disabled
+        if: ${{ github.event_name == 'schedule' && steps.publication.outputs.schedule_enabled != 'true' }}
+        run: |
+          echo "Scheduled publishing is disabled by SCHEDULE_ENABLED."
 
       - name: Apply scheduled jitter
-        if: ${{ github.event_name == 'schedule' }}
+        if: ${{ github.event_name == 'schedule' && steps.publication.outputs.schedule_enabled == 'true' }}
         run: |
           delay=$((0x$(date -u +%F%H | sha256sum | cut -c1-8) % (JITTER_MAX_MINUTES + 1)))
           echo "Scheduled news jitter: ${delay} minutes"
           sleep "${delay}m"
 
       - name: Validate RSS feeds
+        if: ${{ github.event_name != 'schedule' || steps.publication.outputs.schedule_enabled == 'true' }}
         run: pnpm run feeds:validate
 
       - name: Create news preview
+        if: ${{ github.event_name != 'schedule' || steps.publication.outputs.schedule_enabled == 'true' }}
         run: |
           pnpm run news:preview -- \
             --date "${{ steps.publication.outputs.target_date }}" \
@@ -89,15 +99,15 @@ jobs:
             --state data/published-news.json
 
       - name: Telegram dry-run
-        if: ${{ steps.publication.outputs.dry_run == 'true' }}
+        if: ${{ steps.publication.outputs.dry_run == 'true' && (github.event_name != 'schedule' || steps.publication.outputs.schedule_enabled == 'true') }}
         run: pnpm run news:publish:dry-run -- --state data/published-news.json
 
       - name: Publish to Telegram
-        if: ${{ steps.publication.outputs.dry_run != 'true' }}
+        if: ${{ steps.publication.outputs.dry_run != 'true' && (github.event_name != 'schedule' || steps.publication.outputs.schedule_enabled == 'true') }}
         run: pnpm run news:publish -- --state data/published-news.json
 
       - name: Commit published news state
-        if: ${{ steps.publication.outputs.dry_run != 'true' }}
+        if: ${{ steps.publication.outputs.dry_run != 'true' && (github.event_name != 'schedule' || steps.publication.outputs.schedule_enabled == 'true') }}
         run: |
           if git diff --quiet -- data/published-news.json; then
             echo "No published news state changes."
