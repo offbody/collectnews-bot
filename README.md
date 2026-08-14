@@ -80,14 +80,13 @@ repeat the same link.
 
 ## GitHub Actions
 
-The `Publish News` workflow runs on six Yakutsk-time slots:
+The `Publish News` workflow runs every 30 minutes from 07:00 to 21:30 Yakutsk
+time, targeting about 30 automated posts per day.
 
-- 08:00
-- 10:30
-- 13:00
-- 15:30
-- 18:00
-- 20:30
+The schedule intentionally keeps the night quiet while making the daytime feed
+feel active for new readers. Scheduled runs use a small deterministic jitter of
+up to 5 minutes so GitHub Actions load does not cluster exactly on the half-hour
+mark.
 
 Manual workflow dispatch supports:
 
