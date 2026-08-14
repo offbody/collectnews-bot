@@ -165,12 +165,16 @@ async function handleCallbackQuery(
   const message = callbackQuery.message
 
   if (!message) {
-    await answerCallbackQuery(config.botToken, callbackQuery.id)
+    await answerCallbackQuerySafely(config.botToken, callbackQuery.id)
     return
   }
 
   if (!isAdmin(config, callbackQuery.from.id)) {
-    await answerCallbackQuery(config.botToken, callbackQuery.id, "Access denied.")
+    await answerCallbackQuerySafely(
+      config.botToken,
+      callbackQuery.id,
+      "Access denied.",
+    )
     return
   }
 
@@ -184,10 +188,10 @@ async function handleCallbackQuery(
     const result = await applyAction(config, publishDraft, scheduleDraft, data)
     view = result.view
     notice = result.notice
-    await answerCallbackQuery(config.botToken, callbackQuery.id, result.notice)
+    await answerCallbackQuerySafely(config.botToken, callbackQuery.id, result.notice)
   } catch (error) {
     notice = error instanceof Error ? error.message : "Action failed."
-    await answerCallbackQuery(config.botToken, callbackQuery.id, notice)
+    await answerCallbackQuerySafely(config.botToken, callbackQuery.id, notice)
   }
 
   await editControlMenu(
@@ -469,6 +473,22 @@ async function answerCallbackQuery(
   })
 }
 
+async function answerCallbackQuerySafely(
+  botToken: string,
+  callbackQueryId: string,
+  text?: string,
+) {
+  try {
+    await answerCallbackQuery(botToken, callbackQueryId, text)
+  } catch (error) {
+    if (isExpiredCallbackQueryError(error)) {
+      return
+    }
+
+    throw error
+  }
+}
+
 async function callTelegramApi<T>(
   botToken: string,
   method: string,
@@ -496,6 +516,13 @@ function isMessageNotModifiedError(error: unknown) {
   return (
     error instanceof Error &&
     error.message.includes("message is not modified")
+  )
+}
+
+function isExpiredCallbackQueryError(error: unknown) {
+  return (
+    error instanceof Error &&
+    error.message.includes("query is too old")
   )
 }
 
