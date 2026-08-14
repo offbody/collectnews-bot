@@ -66,6 +66,26 @@ export async function sendTelegramPhoto(options: {
   )
 }
 
+export async function sendTelegramPhotoFile(options: {
+  config: TelegramConfig
+  photo: Blob
+  filename: string
+  caption: string
+}) {
+  const formData = new FormData()
+
+  formData.set("chat_id", options.config.chatId)
+  formData.set("photo", options.photo, options.filename)
+  formData.set("caption", options.caption)
+  formData.set("parse_mode", "HTML")
+
+  return callTelegramApi<TelegramMessage>(
+    options.config,
+    "sendPhoto",
+    formData,
+  )
+}
+
 async function callTelegramApi<T>(
   config: TelegramConfig,
   method: string,

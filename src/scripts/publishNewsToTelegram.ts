@@ -5,6 +5,7 @@ import { appendPublishedNews } from "../state/publishedNewsStore.js"
 import {
   getTelegramChat,
   sendTelegramPhoto,
+  sendTelegramPhotoFile,
   sendTelegramMessage,
 } from "../telegram/telegramClient.js"
 import { loadTelegramConfig } from "../telegram/telegramConfig.js"
@@ -116,7 +117,30 @@ async function publishSelection() {
     }
 
     console.warn(
-      "Telegram rejected the image URL as photo content; falling back to text message.",
+      "Telegram rejected the image URL as photo content; trying downloaded image file.",
+    )
+
+    return publishDownloadedImageOrText(item.imageUrl)
+  }
+}
+
+async function publishDownloadedImageOrText(imageUrl: string) {
+  try {
+    const photo = await downloadTelegramPhoto(imageUrl)
+
+    return await sendTelegramPhotoFile({
+      config,
+      photo: photo.blob,
+      filename: photo.filename,
+      caption: createNewsMessage(selection, {
+        includeImageLink: false,
+        maxSummaryLength: 720,
+        maxMessageLength: 1000,
+      }),
+    })
+  } catch (error) {
+    console.warn(
+      `Could not publish downloaded image; falling back to text message. ${formatError(error)}`,
     )
 
     return sendTelegramMessage({
@@ -128,6 +152,75 @@ async function publishSelection() {
       }),
     })
   }
+}
+
+async function downloadTelegramPhoto(imageUrl: string) {
+  const response = await fetch(imageUrl, {
+    headers: {
+      accept: "image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8",
+      "user-agent": "collectnews-bot/0.1 (+https://github.com/offbody/collectnews-bot)",
+    },
+  })
+
+  if (!response.ok) {
+    throw new Error(`image download failed with HTTP ${response.status}`)
+  }
+
+  const contentType = normalizeContentType(response.headers.get("content-type"))
+
+  if (!contentType.startsWith("image/")) {
+    throw new Error(`downloaded content is not an image: ${contentType || "unknown"}`)
+  }
+
+  const arrayBuffer = await response.arrayBuffer()
+  const maxTelegramPhotoBytes = 10 * 1024 * 1024
+
+  if (arrayBuffer.byteLength > maxTelegramPhotoBytes) {
+    throw new Error(
+      `downloaded image is too large for Telegram photo upload: ${arrayBuffer.byteLength} bytes`,
+    )
+  }
+
+  return {
+    blob: new Blob([arrayBuffer], { type: contentType }),
+    filename: createImageFilename(imageUrl, contentType),
+  }
+}
+
+function normalizeContentType(contentType: string | null) {
+  return contentType?.split(";")[0]?.trim().toLowerCase() ?? ""
+}
+
+function createImageFilename(imageUrl: string, contentType: string) {
+  const extension =
+    extensionFromContentType(contentType) ?? extensionFromUrl(imageUrl) ?? "jpg"
+
+  return `news-image.${extension}`
+}
+
+function extensionFromContentType(contentType: string) {
+  const extensions: Record<string, string> = {
+    "image/jpeg": "jpg",
+    "image/jpg": "jpg",
+    "image/png": "png",
+    "image/webp": "webp",
+    "image/gif": "gif",
+  }
+
+  return extensions[contentType]
+}
+
+function extensionFromUrl(imageUrl: string) {
+  try {
+    const extension = path.extname(new URL(imageUrl).pathname).slice(1).toLowerCase()
+    return extension || undefined
+  } catch {
+    return undefined
+  }
+}
+
+function formatError(error: unknown) {
+  return error instanceof Error ? error.message : String(error)
 }
 
 function isTelegramPhotoContentError(error: unknown) {
